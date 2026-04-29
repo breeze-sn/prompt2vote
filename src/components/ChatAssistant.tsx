@@ -15,34 +15,9 @@ const PRESETS = [
 
 export const ChatAssistant: React.FC = () => {
   const { currentStep, userPersona } = useJourney();
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: `Hello! I am Clara, your Prompt2Vote assistant. I see you are at the **${STEPS[currentStep]}** step. How can I help you?` }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const getStepGuidance = (step: number) => {
-    switch(step) {
-      case 0: return "We'll check if you meet the age and residency requirements.";
-      case 1: return "I can help you find your local registration office or online portal.";
-      case 2: return "Let's make sure you have the right documents for voting day.";
-      case 3: return "Today is the big day! Ready for the simulation?";
-      default: return "";
-    }
-  };
-
-  // Sync chat when step changes
-  useEffect(() => {
-    const stepName = STEPS[currentStep];
-    const guidance = `You are now in the **${stepName}** step. ${getStepGuidance(currentStep)}`;
-    
-    setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        { role: 'assistant', content: guidance }
-      ]);
-    }, 0);
-  }, [currentStep]);
 
   const handleSend = async (text: string) => {
     if (!text.trim() || !userPersona) return;
@@ -63,41 +38,59 @@ export const ChatAssistant: React.FC = () => {
   };
 
   return (
-    <div className="chat-container">
-      <div className="chat-messages">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`message ${msg.role}`}>
-            {msg.content}
+    <div className="gemini-chat-container">
+      {messages.length === 0 ? (
+        <div className="gemini-welcome">
+          <h1 className="greeting">Hello there!</h1>
+          <h2 className="sub-greeting">How can I help you?</h2>
+        </div>
+      ) : (
+        <div className="gemini-messages">
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`gemini-message ${msg.role}`}>
+              <div className="avatar">{msg.role === 'assistant' ? '🤖' : '👤'}</div>
+              <div className="content">{msg.content}</div>
+            </div>
+          ))}
+          {isLoading && <div className="gemini-message assistant">Thinking...</div>}
+        </div>
+      )}
+
+      <div className="gemini-input-wrapper">
+        <div className="gemini-input-box">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend(input);
+              }
+            }}
+            placeholder="Ask a Question..."
+            rows={1}
+          />
+          <div className="input-footer">
+            <div className="persona-chip">
+              {userPersona} <span className="arrow">▾</span>
+            </div>
+            <div className="input-actions">
+              <span className="mic-icon">🎤</span>
+            </div>
           </div>
-        ))}
-        {isLoading && <div className="message assistant">Thinking...</div>}
-      </div>
+        </div>
 
-      <div className="presets">
-        {PRESETS.map((preset, idx) => (
-          <button 
-            key={idx} 
-            className="preset-btn" 
-            onClick={() => handleSend(preset)}
-            disabled={isLoading}
-          >
-            {preset}
-          </button>
-        ))}
-      </div>
-
-      <div className="chat-input">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
-          placeholder="Ask a question..."
-          disabled={isLoading}
-        />
-        <button onClick={() => handleSend(input)} disabled={isLoading || !input.trim()}>
-          Send
-        </button>
+        <div className="gemini-presets">
+          {PRESETS.map((preset, idx) => (
+            <button 
+              key={idx} 
+              className="gemini-chip" 
+              onClick={() => handleSend(preset)}
+            >
+              {preset}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -13,9 +13,17 @@ import type { Persona } from './constants/steps';
 const AppContent: React.FC = () => {
   const { currentStep, userPersona, setPersona, nextStep, prevStep, isFirstStep, isLastStep } = useJourney();
   const [showPersonaChoice, setShowPersonaChoice] = React.useState(false);
+  const [showGuidelines, setShowGuidelines] = React.useState(false);
+  const [agreedToGuidelines, setAgreedToGuidelines] = React.useState(false);
 
   const handlePersonaSelect = (persona: Persona) => {
     setPersona(persona);
+    setShowGuidelines(true);
+  };
+
+  const handleAgree = () => {
+    setShowGuidelines(false);
+    setAgreedToGuidelines(true);
   };
 
   if (!userPersona) {
@@ -58,71 +66,53 @@ const AppContent: React.FC = () => {
     );
   }
 
-  return (
-    <div className="app-container">
-      <header className="app-header">
-        <h1>Prompt2Vote</h1>
-        <div className="persona-info">
-          <span>Role: <strong>{userPersona}</strong></span>
+  if (showGuidelines) {
+    return (
+      <div className="modal-overlay">
+        <div className="guidelines-modal">
+          <h2>Important Guidelines</h2>
+          <ol className="modal-list">
+            <li>Must be 18+ and registered in the electoral roll</li>
+            <li>Only one voter registration is allowed</li>
+            <li>Use Form 6 (new/update) and Form 8 (corrections)</li>
+            <li>Carry a valid government ID (Voter ID preferred)</li>
+            <li>Verify your name and polling booth location in advance</li>
+            <li>Voting is confidential (secret ballot)</li>
+            <li>No mobile phones or electronics inside the polling booth</li>
+            <li>You may choose the NOTA option</li>
+            <li>Assistance is available for elderly and differently-abled voters</li>
+            <li>Bribery, impersonation, or duplicate voting are punishable offense</li>
+          </ol>
+          <div className="modal-footer">
+            <button className="agree-btn" onClick={handleAgree}>Agree and Continue</button>
+          </div>
         </div>
-      </header>
-        <main className="main-layout">
-          <aside className="left-panel">
-            <h2>Your Journey</h2>
-            <Timeline />
-          </aside>
+      </div>
+    );
+  }
 
-          <section className="right-panel">
-            <div className="card">
-              <h2>Chat Assistant</h2>
-              <ChatAssistant />
-            </div>
+  return (
+    <div className="gemini-layout">
+      <aside className="gemini-sidebar">
+        <div className="sidebar-top">
+          <div className="sidebar-icon">☰</div>
+          <div className="sidebar-icon">📝</div>
+        </div>
+      </aside>
 
-            {currentStep === 1 && ( // Registration
-              <div className="card">
-                <h2>Registration Checklist</h2>
-                <Registration />
-              </div>
-            )}
+      <main className="gemini-main">
+        <header className="gemini-header">
+          <div className="logo">Prompt2Vote</div>
+          <nav className="gemini-nav">
+            <a href="#about">About</a>
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer">Github</a>
+          </nav>
+        </header>
 
-            {currentStep === 2 && ( // Voter ID
-              <div className="card">
-                <h2>Your Voter ID (e-EPIC)</h2>
-                <VoterID />
-              </div>
-            )}
-
-            {currentStep === 3 && ( // Voting Day
-              <div className="card">
-                <h2>Interactive Simulation</h2>
-                <Simulation />
-              </div>
-            )}
-
-            <div className="card">
-              <h2>Important Guidelines</h2>
-              <Guidelines />
-            </div>
-
-            <div className="navigation-controls">
-              <button 
-                onClick={prevStep} 
-                disabled={isFirstStep}
-                className="nav-btn secondary"
-              >
-                Back
-              </button>
-              <button 
-                onClick={nextStep} 
-                disabled={isLastStep}
-                className="nav-btn primary"
-              >
-                {isLastStep ? 'Complete Journey' : 'Next Step'}
-              </button>
-            </div>
-          </section>
-        </main>
-      )}
+        <div className="gemini-chat-area">
+          <ChatAssistant />
+        </div>
+      </main>
     </div>
   );
 };
