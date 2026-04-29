@@ -4,7 +4,7 @@
  */
 
 export const initSecurity = () => {
-  if (process.env.NODE_ENV === 'development') return;
+  if (import.meta.env.DEV) return;
 
   // 1. Disable Right Click
   document.addEventListener('contextmenu', (e) => e.preventDefault());
