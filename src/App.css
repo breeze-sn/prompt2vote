@@ -147,28 +147,77 @@
   flex: 1;
 }
 
-/* Simulation Component */
-.simulation-options {
+.navigation-controls {
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.sim-btn {
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding: 1rem;
   background: var(--surface-color);
-  color: var(--primary-color);
-  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
-.sim-btn:hover {
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-btn.primary {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.nav-btn.primary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.nav-btn.secondary {
+  background: white;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.onboarding-overlay {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--bg-color);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.step-number {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  background: var(--border-color);
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.active .step-number {
   background: var(--primary-color);
   color: white;
 }
 
-.feedback-text {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: #e6f2ff;
-  border-radius: 4px;
-  border-left: 4px solid var(--primary-color);
+.completed .step-number {
+  background: #22c55e;
+  color: white;
 }

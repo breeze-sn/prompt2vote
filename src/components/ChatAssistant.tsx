@@ -1,15 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateChatResponse } from '../services/gemini';
-import { Persona } from '../App';
+import { useJourney } from '../context/JourneyContext';
+import { STEPS } from '../constants/steps';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-}
-
-interface ChatProps {
-  persona: Persona;
-  currentStep: number;
 }
 
 const PRESETS = [
@@ -17,15 +13,37 @@ const PRESETS = [
   "How do I register to vote?"
 ];
 
-export const ChatAssistant: React.FC<ChatProps> = ({ persona, currentStep }) => {
+export const ChatAssistant: React.FC = () => {
+  const { currentStep, userPersona } = useJourney();
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hello! I am Clara, your Prompt2Vote assistant. How can I help you today?' }
+    { role: 'assistant', content: `Hello! I am Clara, your Prompt2Vote assistant. I see you are at the **${STEPS[currentStep]}** step. How can I help you?` }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Sync chat when step changes
+  useEffect(() => {
+    const stepName = STEPS[currentStep];
+    const guidance = `You are now in the **${stepName}** step. ${getStepGuidance(currentStep)}`;
+    
+    setMessages(prev => [
+      ...prev,
+      { role: 'assistant', content: guidance }
+    ]);
+  }, [currentStep]);
+
+  const getStepGuidance = (step: number) => {
+    switch(step) {
+      case 0: return "We'll check if you meet the age and residency requirements.";
+      case 1: return "I can help you find your local registration office or online portal.";
+      case 2: return "Let's make sure you have the right documents for voting day.";
+      case 3: return "Today is the big day! Ready for the simulation?";
+      default: return "";
+    }
+  };
+
   const handleSend = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || !userPersona) return;
 
     const userMessage: Message = { role: 'user', content: text };
     setMessages(prev => [...prev, userMessage]);
@@ -33,7 +51,7 @@ export const ChatAssistant: React.FC<ChatProps> = ({ persona, currentStep }) => 
     setIsLoading(true);
 
     try {
-      const response = await generateChatResponse(text, persona, currentStep);
+      const response = await generateChatResponse(text, userPersona, currentStep);
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);

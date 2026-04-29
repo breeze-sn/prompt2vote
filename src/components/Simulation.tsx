@@ -20,7 +20,7 @@ export const Simulation: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="simulation-content">
       <p><strong>Scenario:</strong> You arrive at a polling booth. What do you do?</p>
       
       <div className="simulation-options">

@@ -1,22 +1,34 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Timeline } from './Timeline';
+import { JourneyProvider } from '../context/JourneyContext';
+
+const renderTimeline = () => {
+  return render(
+    <JourneyProvider>
+      <Timeline />
+    </JourneyProvider>
+  );
+};
 
 describe('Timeline', () => {
-  it('renders all 4 steps', () => {
-    render(<Timeline currentStep={0} onStepChange={vi.fn()} />);
+  it('renders all steps', () => {
+    renderTimeline();
     
-    expect(screen.getByText('1. Eligibility')).toBeInTheDocument();
-    expect(screen.getByText('2. Registration')).toBeInTheDocument();
-    expect(screen.getByText('3. Voter ID')).toBeInTheDocument();
-    expect(screen.getByText('4. Voting Day')).toBeInTheDocument();
+    expect(screen.getByText('Eligibility')).toBeInTheDocument();
+    expect(screen.getByText('Registration')).toBeInTheDocument();
+    expect(screen.getByText('Voter ID')).toBeInTheDocument();
+    expect(screen.getByText('Voting Day')).toBeInTheDocument();
   });
 
-  it('calls onStepChange when a step is clicked', () => {
-    const handleStepChange = vi.fn();
-    render(<Timeline currentStep={0} onStepChange={handleStepChange} />);
+  it('updates state when a step is clicked', () => {
+    renderTimeline();
     
-    fireEvent.click(screen.getByText('3. Voter ID'));
-    expect(handleStepChange).toHaveBeenCalledWith(2);
+    const step = screen.getByText('Voter ID');
+    fireEvent.click(step);
+    
+    // The step should now have the 'active' class (on its parent button)
+    const button = step.closest('button');
+    expect(button).toHaveClass('active');
   });
 });

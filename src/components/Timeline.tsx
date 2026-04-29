@@ -1,33 +1,29 @@
 import React from 'react';
+import { useJourney } from '../context/JourneyContext';
+import { STEPS } from '../constants/steps';
 
-interface TimelineProps {
-  currentStep: number;
-  onStepChange: (step: number) => void;
-}
+export const Timeline: React.FC = () => {
+  const { currentStep, completedSteps, goToStep } = useJourney();
 
-const STEPS = [
-  'Eligibility',
-  'Registration',
-  'Voter ID',
-  'Voting Day'
-];
-
-export const Timeline: React.FC<TimelineProps> = ({ currentStep, onStepChange }) => {
   return (
     <div className="timeline-list">
       {STEPS.map((step, index) => {
+        const isActive = index === currentStep;
+        const isCompleted = completedSteps.includes(index);
+        
         let className = 'timeline-step';
-        if (index === currentStep) className += ' active';
-        else if (index < currentStep) className += ' completed';
+        if (isActive) className += ' active';
+        if (isCompleted) className += ' completed';
 
         return (
           <button
             key={step}
             className={className}
-            onClick={() => onStepChange(index)}
-            aria-current={index === currentStep ? 'step' : undefined}
+            onClick={() => goToStep(index)}
+            aria-current={isActive ? 'step' : undefined}
           >
-            {index + 1}. {step}
+            <span className="step-number">{index + 1}</span>
+            <span className="step-label">{step}</span>
           </button>
         );
       })}
