@@ -1,29 +1,31 @@
 import React from 'react';
 import './App.css';
 import { ChatAssistant } from './components/ChatAssistant';
+import { AboutPage } from './components/AboutPage';
 import { JourneyProvider } from './context/JourneyProvider';
 import { useJourney } from './context/JourneyContext';
 import type { Persona } from './constants/steps';
 
 const PERSONAS: { id: Persona; label: string; icon: string; desc: string }[] = [
-  { id: 'First-time voter',      label: 'First Time Voter',     icon: 'how_to_vote', desc: 'Just turned 18 and voting for the first time' },
-  { id: 'Student',               label: 'Student',              icon: 'school',      desc: 'Want to understand the election process better' },
-  { id: 'Working professional',  label: 'Working Professional', icon: 'work',        desc: 'Short on time, need quick civic guidance' },
+  { id: 'First-time voter', label: 'First Time Voter', icon: 'how_to_vote', desc: 'Just turned 18 and voting for the first time' },
+  { id: 'Student', label: 'Student', icon: 'school', desc: 'Want to understand the election process better' },
+  { id: 'Working professional', label: 'Working Professional', icon: 'work', desc: 'Short on time, need quick civic guidance' },
 ];
 
 const NAV_ITEMS: { label: string; icon: string }[] = [
-  { label: 'Guidelines',   icon: 'rule'           },
-  { label: 'Eligibility',  icon: 'verified_user'  },
-  { label: 'Registration', icon: 'app_registration'},
-  { label: 'Voter ID',     icon: 'badge'          },
-  { label: 'Voter Day',    icon: 'event_available'},
+  { label: 'Guidelines', icon: 'rule' },
+  { label: 'Eligibility', icon: 'verified_user' },
+  { label: 'Registration', icon: 'app_registration' },
+  { label: 'Voter ID', icon: 'badge' },
+  { label: 'Voter Day', icon: 'event_available' },
 ];
 
 const AppContent: React.FC = () => {
   const { userPersona, setPersona } = useJourney();
   const [showPersonaChoice, setShowPersonaChoice] = React.useState(false);
-  const [showGuidelines, setShowGuidelines]       = React.useState(false);
-  const [sidebarOpen, setSidebarOpen]             = React.useState(false);
+  const [showGuidelines, setShowGuidelines] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [showAbout, setShowAbout] = React.useState(false);
 
   const handlePersonaSelect = (persona: Persona) => {
     setPersona(persona);
@@ -33,6 +35,11 @@ const AppContent: React.FC = () => {
   const handleAgree = () => setShowGuidelines(false);
   const resetJourney = () => window.location.reload();
 
+  /* ── About Page ── */
+  if (showAbout) {
+    return <AboutPage onBack={() => setShowAbout(false)} />;
+  }
+
   /* ── Landing ── */
   if (!userPersona) {
     return (
@@ -40,8 +47,8 @@ const AppContent: React.FC = () => {
         <header className="lp-header">
           <span className="lp-logo">Prompt2Vote</span>
           <nav className="lp-nav">
-            <a href="#about">About</a>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">Github</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowAbout(true); }}>About</a>
+            <a href="https://github.com/breeze-sn/prompt2vote" target="_blank" rel="noopener noreferrer">Github</a>
           </nav>
         </header>
 
@@ -79,16 +86,16 @@ const AppContent: React.FC = () => {
         <div className="modal-box">
           <h2 className="modal-title">Important Guidelines</h2>
           <ol className="modal-list">
-            <li>Must be 18+ and registered in the electoral roll</li>
+            <li>Must be 18+ and listed in the electoral roll</li>
             <li>Only one voter registration is allowed</li>
-            <li>Use Form 6 (new/update) and Form 8 (corrections)</li>
-            <li>Carry a valid government ID (Voter ID preferred)</li>
-            <li>Verify your name and polling booth location in advance</li>
+            <li>Verify your name before voting day</li>
+            <li>Carry a valid government ID (EPIC preferred)</li>
             <li>Voting is confidential (secret ballot)</li>
-            <li>No mobile phones or electronics inside the polling booth</li>
-            <li>You may choose the NOTA option</li>
-            <li>Assistance is available for elderly and differently-abled voters</li>
-            <li>Bribery, impersonation, or duplicate voting are punishable offenses</li>
+            <li>No electronic devices inside the polling booth</li>
+            <li>Follow polling rules and queue discipline</li>
+            <li>NOTA option is available</li>
+            <li>Assistance allowed for eligible voters</li>
+            <li>Bribery, impersonation, or influence is punishable</li>
           </ol>
           <div className="modal-footer">
             <button className="modal-agree" onClick={handleAgree}>Agree and Continue</button>
@@ -125,13 +132,15 @@ const AppContent: React.FC = () => {
               ))}
             </div>
             <div className="sb-section sb-footer">
-              <div className="sb-item">
+              <div className="sb-item" onClick={() => setShowAbout(true)}>
                 <span className="material-symbols-rounded sb-item-icon">info</span>
                 <span>About</span>
               </div>
               <div className="sb-item">
-                <span className="material-symbols-rounded sb-item-icon">code</span>
-                <span>Github</span>
+                <a href="https://github.com/breeze-sn/prompt2vote" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <span className="material-symbols-rounded sb-item-icon">code</span>
+                  <span>Github</span>
+                </a>
               </div>
             </div>
           </nav>

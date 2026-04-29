@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { generateChatResponse } from '../services/gemini';
 import { useJourney } from '../context/JourneyContext';
 
@@ -21,92 +21,93 @@ export const ChatAssistant: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput]       = useState('');
   const [loading, setLoading]   = useState(false);
-  const bottomRef               = useRef<HTMLDivElement>(null);
-  const textareaRef             = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-scroll to latest message
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
 
   const send = async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setMessages(prev => [...prev, { role: 'user', content: trimmed }]);
+    if (!text.trim()) return;
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
     setInput('');
     setLoading(true);
     try {
-      const res = await generateChatResponse(trimmed, userPersona, currentStep);
+      const res = await generateChatResponse(text, userPersona, currentStep);
       setMessages(prev => [...prev, { role: 'assistant', content: clean(res) }]);
     } catch (e: any) {
+      console.error(e);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `⚠ ${e?.message ?? 'Could not reach AI. Check internet connection.'}`,
+        content: `Error: ${e?.message ?? 'Could not reach AI. Check your API key or internet connection.'}`
       }]);
     } finally {
       setLoading(false);
     }
   };
 
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    if (!loading && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [loading]);
+
   return (
-    <div className="chat-container">
+    <div className="gemini-chat-container">
 
-      {/* ── Messages / Greeting ── */}
-      <div className="chat-scroll">
-        {messages.length === 0 && !loading ? (
-          <div className="chat-greeting">
-            <h1>Hello there!</h1>
-            <h2>How can I help you?</h2>
-          </div>
-        ) : (
-          <>
-            {messages.map((msg, i) =>
-              msg.role === 'user' ? (
-                <div key={i} className="msg-user">{msg.content}</div>
-              ) : (
-                <div key={i} className="msg-bot">
-                  <div className="msg-bot-header">
-                    <div className="bot-dot" />
-                    <span className="bot-name-label">Clara</span>
-                  </div>
-                  <div className="msg-bot-body">{msg.content}</div>
-                </div>
-              )
-            )}
+      {/* ── Empty state greeting ── */}
+      {messages.length === 0 && (
+        <div className="greeting-container">
+          <h1>Hello there!</h1>
+          <h2>How can I help you?</h2>
+        </div>
+      )}
 
-            {loading && (
-              <div className="msg-bot">
-                <div className="msg-bot-header">
-                  <div className="bot-dot dot-pulse" />
-                  <span className="bot-name-label">Clara</span>
-                </div>
-                <div className="shimmer-wrap">
-                  <div className="shimmer-bar" />
-                  <div className="shimmer-bar shimmer-short" />
+      {/* ── Messages ── */}
+      {messages.length > 0 && (
+        <div className="gemini-messages">
+          {messages.map((msg, i) =>
+            msg.role === 'user' ? (
+              <div key={i} className="gemini-message user">{msg.content}</div>
+            ) : (
+              <div key={i} className="gemini-message assistant">
+                <div className="bot-label">Clara</div>
+                <div className="bot-content-wrapper">
+                  <div className="bot-avatar" />
+                  <div className="bot-text">{msg.content}</div>
                 </div>
               </div>
-            )}
-          </>
-        )}
-        <div ref={bottomRef} />
-      </div>
+            )
+          )}
 
-      {/* ── Input ── */}
-      <div className="chat-input-area">
-        <div className="chat-input-box">
-          {/* Header label row */}
-          <div className="cib-header">
-            <span className="material-symbols-rounded cib-icon">verified_user</span>
-            <span className="cib-hint">Ask a question about voting…</span>
+          {/* Loading shimmer */}
+          {loading && (
+            <div className="gemini-message assistant">
+              <div className="bot-label">Clara</div>
+              <div className="bot-content-wrapper">
+                <div className="bot-avatar pulse" />
+                <div className="shimmer-container">
+                  <div className="shimmer-line" />
+                  <div className="shimmer-line short" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Input area ── */}
+      <div className="input-section">
+        <div 
+          className="gemini-input-box"
+          onClick={() => inputRef.current?.focus()}
+        >
+          <div className="input-header">
+            <span className="material-symbols-rounded">verified_user</span>
+            <span>Ask a Question…</span>
           </div>
 
-          {/* Actual textarea — full width, transparent */}
           <textarea
-            ref={textareaRef}
-            className="cib-textarea"
+            ref={inputRef}
             value={input}
             rows={3}
-            placeholder=""
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -114,35 +115,27 @@ export const ChatAssistant: React.FC = () => {
                 send(input);
               }
             }}
+            placeholder="Type your message here..."
+            autoFocus
           />
 
-          {/* Footer row */}
-          <div className="cib-footer">
-            <button className="cib-persona">
-              {userPersona}
+          <div className="input-bottom">
+            <div className="persona-toggle">
+              <span>{userPersona}</span>
               <span className="material-symbols-rounded">expand_more</span>
-            </button>
-            <button
-              className={`cib-send ${input.trim() ? 'active' : ''}`}
-              onClick={() => send(input)}
-              disabled={loading}
-            >
-              {input.trim()
-                ? <span className="material-symbols-rounded">send</span>
-                : <span className="material-symbols-rounded">mic</span>
-              }
-            </button>
+            </div>
+            <div className="mic-icon">
+              <span className="material-symbols-rounded">mic</span>
+            </div>
           </div>
         </div>
 
         {/* Preset chips */}
-        {messages.length === 0 && (
-          <div className="chip-row">
-            {PRESETS.map((p, i) => (
-              <button key={i} className="chip" onClick={() => send(p)}>{p}</button>
-            ))}
-          </div>
-        )}
+        <div className="preset-chips">
+          {PRESETS.map((p, i) => (
+            <button key={i} className="chip" onClick={() => send(p)}>{p}</button>
+          ))}
+        </div>
       </div>
     </div>
   );

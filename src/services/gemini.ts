@@ -81,11 +81,40 @@ export const generateChatResponse = async (
   return `I'm having trouble connecting to my AI core. Error: ${errorMessage}. Please check your internet connection or ensure your API key is valid. Key present: ${!!API_KEY}`;
 };
 
-// Simplified mock response as a safe fallback
+// Expanded mock response as a safe fallback for common questions
 const mockResponse = (prompt: string, _persona: string, _currentStep: number): string => {
   const lower = prompt.toLowerCase();
-  if (lower.includes('age') || /\b\d{1,2}\b/.test(lower)) {
-    return "• Must be 18+ to vote.\n• Register via NVSP portal.\n• Verification takes 2-4 weeks.";
+
+  // Eligibility
+  if (lower.includes('age') || lower.includes('eligible') || lower.includes('qualify')) {
+    return "• Must be 18+ on the qualifying date.\n• Must be an Indian citizen.\n• Must be an ordinary resident of the constituency.\n• Not disqualified by any law.";
   }
-  return "• Visit voters.eci.gov.in for official status.\n• Ensure you have valid ID (Aadhaar/EPIC).\n• Connect Gemini API key for real-time guidance.";
+
+  // Registration
+  if (lower.includes('register') || lower.includes('form 6') || lower.includes('apply')) {
+    return "• Use Form 6 for new voter registration.\n• Apply online at voters.eci.gov.in.\n• Upload photo, age proof, and address proof.\n• Track status using reference ID.";
+  }
+
+  // Documents
+  if (lower.includes('document') || lower.includes('id') || lower.includes('proof')) {
+    return "• Photo ID: Aadhaar, PAN, Passport, or DL.\n• Age Proof: Birth Certificate or Class 10th marksheet.\n• Address Proof: Electricity bill or Water bill.\n• EPIC (Voter ID) is the primary document.";
+  }
+
+  // Voting Process
+  if (lower.includes('how to vote') || lower.includes('process') || lower.includes('booth')) {
+    return "• Locate your booth on the ECI website.\n• Carry your Voter ID or valid Govt ID.\n• First officer checks your name in the list.\n• Second officer inks your finger and takes signature.\n• Third officer enables the EVM.\n• Press the button next to your candidate's symbol.";
+  }
+
+  // NOTA
+  if (lower.includes('nota') || lower.includes('none of the above')) {
+    return "• NOTA (None of the Above) is at the end of the candidate list.\n• It allows you to express dissent against all candidates.\n• It is a constitutional right for every voter.";
+  }
+
+  // Deadlines & Dates
+  if (lower.includes('date') || lower.includes('when') || lower.includes('deadline')) {
+    return "• Registration usually closes 2-3 weeks before election day.\n• Check eci.gov.in for specific schedule in your state.\n• General elections are held every 5 years.";
+  }
+
+  // Default Fallback
+  return "• Visit voters.eci.gov.in for official status and forms.\n• Ensure you have a valid ID (Aadhaar/EPIC) ready.\n• Use the 'Guidelines' section in the sidebar for more details.\n• Gemini Cloud is currently offline, providing cached common answers.";
 };
