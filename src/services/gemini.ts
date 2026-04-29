@@ -38,29 +38,41 @@ export const generateChatResponse = async (
 ): Promise<string> => {
   
   // FALLBACK TO MOCK if no API key is provided
-  if (!genAI) {
-    console.warn("Gemini API key missing. Falling back to mock response.");
+  if (!genAI || !API_KEY) {
+    console.warn("Gemini API key missing or undefined. Falling back to mock response.");
     return mockResponse(prompt, persona || 'User', currentStep);
   }
 
-  try {
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-pro",
-    });
+  // Try multiple models in case of 404
+  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+  let lastError: any = null;
 
-    const fullPrompt = `${SYSTEM_INSTRUCTION}\n\n` +
-                       `User Persona: ${persona || 'General Voter'}\n` +
-                       `Current Journey Step: ${STEPS[currentStep]}\n` +
-                       `User Message: ${prompt}`;
+  for (const modelName of modelsToTry) {
+    try {
+      const model = genAI.getGenerativeModel({ 
+        model: modelName,
+      });
 
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    const errorMessage = error?.message || "Unknown error";
-    return `I'm having trouble connecting to my AI core. Error: ${errorMessage}. Please check your internet connection or ensure your API key is valid for 'gemini-1.5-flash'.`;
+      const fullPrompt = `${SYSTEM_INSTRUCTION}\n\n` +
+                         `User Persona: ${persona || 'General Voter'}\n` +
+                         `Current Journey Step: ${STEPS[currentStep]}\n` +
+                         `User Message: ${prompt}`;
+
+      const result = await model.generateContent(fullPrompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error: any) {
+      console.error(`Gemini Error with model ${modelName}:`, error);
+      lastError = error;
+      // If it's a 404, try next model. Otherwise, throw.
+      if (!error?.message?.includes('404')) {
+        break;
+      }
+    }
   }
+
+  const errorMessage = lastError?.message || "Unknown error";
+  return `I'm having trouble connecting to my AI core. Error: ${errorMessage}. Please check your internet connection or ensure your API key is valid. Key present: ${!!API_KEY}`;
 };
 
 // Simplified mock response as a safe fallback
