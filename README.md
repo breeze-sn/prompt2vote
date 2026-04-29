@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Prompt2Vote
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Prompt2Vote** is an AI-powered Smart Election Companion designed to guide users through the electoral process intuitively. Built as a prototype, this project transforms the traditional voting experience into an interactive, experiential learning journey.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Guided Election Journey**: A step-by-step timeline that educates users on the election process, from understanding candidates to casting a ballot.
+- **Interactive Simulation Mode**: Scenario-based simulations that let users practice voting and explore the potential impact of their decisions in a safe, virtual environment.
+- **Persona-based Personalization**: Tailored guidance based on user profiles to deliver relevant information and make complex civic processes accessible.
+- **AI Chat Assistant**: Powered by Google's Gemini, this assistant acts as an interactive guide, answering user questions about the election seamlessly.
+- **Modern & Responsive UI**: Clean, dynamic design built with React, TypeScript, and Vite, utilizing modern web aesthetics to provide a premium user experience.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React, TypeScript, Vite, Vanilla CSS
+- **AI Integration**: Google Gemini API
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up your environment variables. Create a `.env` file and add your Gemini API key:
+   ```
+   VITE_GEMINI_API_KEY=your_api_key_here
+   ```
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Credits
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Special thanks to **Prompt Wars** for the inspiration and for hosting the amazing hackathon that sparked this idea!
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Contact
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Simran Nagekar**  
+Email: [nagekarsimran@gmail.com](mailto:nagekarsimran@gmail.com)
