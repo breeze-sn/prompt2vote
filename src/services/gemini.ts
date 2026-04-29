@@ -17,15 +17,14 @@ ELECTION RULES FOR INDIA:
 `;
 
 const SYSTEM_INSTRUCTION = `
-You are Clara, the Smart Election Companion for the Prompt2Vote app. 
-Your mission is to guide users through the electoral process in India accurately and safely.
+You are Prompt2Vote, a minimalist AI election assistant. 
 
-CORE RULES:
-1. NO HALLUCINATION: Only provide information based on official Indian election guidelines. If you are unsure, say you don't know and refer them to the Election Commission of India (ECI).
-2. AGE CHECK: If a user mentions being under 18, strictly inform them they are ineligible to vote. Do not provide voting shortcuts.
-3. PERSONA AWARE: Adapt your tone to the user's persona (e.g., Student, First-time voter, Senior Citizen).
-4. CONTEXT AWARE: You know the user is currently at a specific step in their "Journey." Use this to provide relevant advice.
-5. NO LINKS: Do not provide links to unofficial third-party websites. Only mention NVSP or official ECI portals.
+ULTRA-CONCISE RULES:
+1. NO INTRODUCTIONS: Do not say "I am Clara", "Hello", or "As your assistant". Start directly with the answer.
+2. MINIMALIST FORMAT: Use bullet points for everything. Keep each point under 10 words.
+3. RUSH MODE: Provide only the most critical actions. No small talk or background context unless essential.
+4. NO HALLUCINATION: Only official Indian election facts. Refer to ECI/NVSP for everything else.
+5. AGE CHECK: Strictly enforce 18+ eligibility.
 
 Factual Grounding:
 ${ELECTION_FACTS}
@@ -43,35 +42,36 @@ export const generateChatResponse = async (
     return mockResponse(prompt, persona || 'User', currentStep);
   }
 
-  // Try multiple models in case of 404 (Optimized for this key's access)
+  // Valid Gemini model IDs (ordered by preference)
   const modelsToTry = [
-    "gemini-flash-latest",
-    "gemini-pro-latest",
-    "gemini-2.5-flash", 
-    "gemini-2.0-flash", 
-    "gemini-1.5-flash"
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-1.0-pro"
   ];
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
     try {
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: modelName,
+        systemInstruction: SYSTEM_INSTRUCTION,
       });
 
-      const fullPrompt = `${SYSTEM_INSTRUCTION}\n\n` +
-                         `User Persona: ${persona || 'General Voter'}\n` +
-                         `Current Journey Step: ${STEPS[currentStep]}\n` +
-                         `User Message: ${prompt}`;
+      const fullPrompt =
+        `User Persona: ${persona || 'General Voter'}\n` +
+        `Current Journey Step: ${STEPS[currentStep] ?? 'General'}\n` +
+        `User Message: ${prompt}`;
 
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
       return response.text();
     } catch (error: any) {
-      console.error(`Gemini Error with model ${modelName}:`, error);
+      console.error(`Gemini [${modelName}]:`, error?.message ?? error);
       lastError = error;
-      // If it's a 404, try next model. Otherwise, throw.
-      if (!error?.message?.includes('404')) {
+      // only skip to next model on 404 / model-not-found errors
+      const msg: string = error?.message ?? '';
+      if (!msg.includes('404') && !msg.includes('not found') && !msg.includes('MODEL_NOT_FOUND')) {
         break;
       }
     }
@@ -82,10 +82,10 @@ export const generateChatResponse = async (
 };
 
 // Simplified mock response as a safe fallback
-const mockResponse = (prompt: string, persona: string, currentStep: number): string => {
+const mockResponse = (prompt: string, _persona: string, _currentStep: number): string => {
   const lower = prompt.toLowerCase();
   if (lower.includes('age') || /\b\d{1,2}\b/.test(lower)) {
-    return "I noticed you mentioned age. In India, you must be at least 18 to vote. If you're eligible, your first step is registration via NVSP.";
+    return "• Must be 18+ to vote.\n• Register via NVSP portal.\n• Verification takes 2-4 weeks.";
   }
-  return `As a ${persona} at the "${STEPS[currentStep]}" stage, I recommend following the official ECI guidelines. Please add a Gemini API key to see my full AI capabilities!`;
+  return "• Visit voters.eci.gov.in for official status.\n• Ensure you have valid ID (Aadhaar/EPIC).\n• Connect Gemini API key for real-time guidance.";
 };
