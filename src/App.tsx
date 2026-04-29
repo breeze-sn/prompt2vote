@@ -3,7 +3,8 @@ import './App.css';
 import { Timeline } from './components/Timeline';
 import { ChatAssistant } from './components/ChatAssistant';
 import { Simulation } from './components/Simulation';
-import { JourneyProvider, useJourney } from './context/JourneyContext';
+import { JourneyProvider } from './context/JourneyProvider';
+import { useJourney } from './context/JourneyContext';
 import type { Persona } from './constants/steps';
 
 const AppContent: React.FC = () => {

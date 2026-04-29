@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Timeline } from './Timeline';
-import { JourneyProvider } from '../context/JourneyContext';
+import { JourneyProvider } from '../context/JourneyProvider';
 
 const renderTimeline = () => {
   return render(

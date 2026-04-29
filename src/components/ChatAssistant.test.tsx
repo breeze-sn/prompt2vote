@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatAssistant } from './ChatAssistant';
-import { JourneyProvider } from '../context/JourneyContext';
+import { JourneyProvider } from '../context/JourneyProvider';
 
 const renderChat = () => {
   return render(

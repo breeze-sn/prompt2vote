@@ -21,17 +21,6 @@ export const ChatAssistant: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sync chat when step changes
-  useEffect(() => {
-    const stepName = STEPS[currentStep];
-    const guidance = `You are now in the **${stepName}** step. ${getStepGuidance(currentStep)}`;
-    
-    setMessages(prev => [
-      ...prev,
-      { role: 'assistant', content: guidance }
-    ]);
-  }, [currentStep]);
-
   const getStepGuidance = (step: number) => {
     switch(step) {
       case 0: return "We'll check if you meet the age and residency requirements.";
@@ -41,6 +30,19 @@ export const ChatAssistant: React.FC = () => {
       default: return "";
     }
   };
+
+  // Sync chat when step changes
+  useEffect(() => {
+    const stepName = STEPS[currentStep];
+    const guidance = `You are now in the **${stepName}** step. ${getStepGuidance(currentStep)}`;
+    
+    setTimeout(() => {
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: guidance }
+      ]);
+    }, 0);
+  }, [currentStep]);
 
   const handleSend = async (text: string) => {
     if (!text.trim() || !userPersona) return;
@@ -53,7 +55,7 @@ export const ChatAssistant: React.FC = () => {
     try {
       const response = await generateChatResponse(text, userPersona, currentStep);
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
-    } catch (error) {
+    } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
       setIsLoading(false);
