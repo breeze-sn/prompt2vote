@@ -43,8 +43,14 @@ export const generateChatResponse = async (
     return mockResponse(prompt, persona || 'User', currentStep);
   }
 
-  // Try multiple models in case of 404
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+  // Try multiple models in case of 404 (Optimized for this key's access)
+  const modelsToTry = [
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+    "gemini-2.5-flash", 
+    "gemini-2.0-flash", 
+    "gemini-1.5-flash"
+  ];
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
