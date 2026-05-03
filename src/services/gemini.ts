@@ -9,12 +9,19 @@
  */
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { STEPS } from '../constants/steps';
+import { QUICK_START_ITEMS } from '../constants/quickStart';
+import { sanitizeUserInput } from '../utils/security';
 
 // Initialize the Gemini API
 // Note: In a production app, you should use a backend to proxy these requests
 // and keep your API key secure. For this hackathon prototype, we use VITE_GEMINI_API_KEY.
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
+
+// Response cache to reduce API calls for duplicate questions
+const responseCache = new Map<string, string>();
+const getCacheKey = (prompt: string, persona: string | null, step: number): string =>
+  `${prompt.toLowerCase().trim()}|${persona}|${step}`;
 
 const ELECTION_FACTS = `
 ELECTION RULES FOR INDIA:
@@ -44,64 +51,59 @@ export const generateChatResponse = async (
   persona: string | null, 
   currentStep: number
 ): Promise<string> => {
+  const safePrompt = sanitizeUserInput(prompt);
+
+  if (!safePrompt) {
+    return 'Please type a question about elections or voter services.';
+  }
+
+  if (safePrompt.length > 1000) {
+    return 'Your question is too long. Please shorten it to keep the assistant focused and secure.';
+  }
+
+  // Check response cache to avoid duplicate API calls
+  const cacheKey = getCacheKey(safePrompt, persona, currentStep);
+  const cachedResponse = responseCache.get(cacheKey);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
   
   // Quick-start preset answers (no API call)
-  const norm = prompt.trim().toLowerCase();
+  const norm = safePrompt.toLowerCase();
   // Greet and gratitude handling: reply locally without calling the model
   const greetRegex = /\b(hi|hello|hey|good morning|good afternoon|good evening|greetings)\b/;
   const thanksRegex = /\b(thanks|thank you|thx|cheers)\b/;
   if (greetRegex.test(norm)) {
-    return "Hello — thanks for reaching out! How can I help with election-related questions today?";
+    const greetResp = "Hello — thanks for reaching out! How can I help with election-related questions today?";
+    responseCache.set(cacheKey, greetResp);
+    return greetResp;
   }
   if (thanksRegex.test(norm)) {
-    return "You're welcome — happy to help with election questions. Ask me anything about registration, voter ID, polling, NVSP, or NOTA.";
+    const thanksResp = "You're welcome — happy to help with election questions. Ask me anything about registration, voter ID, polling, NVSP, or NOTA.";
+    responseCache.set(cacheKey, thanksResp);
+    return thanksResp;
   }
-  const PRESET_QA: Array<{ keys: string[]; answer: string }> = [
-    {
-      keys: ['how to register', 'register', 'registration', 'form 6', 'how do i register'],
-      answer:
-        '• Use Form 6 for new voter registration.\n• Apply online at voters.eci.gov.in or NVSP.\n• Upload photo, age proof, and address proof.\n• Track status with the reference ID.'
-    },
-    {
-      keys: ['voting age', 'age requirement', 'how old', 'minimum age'],
-      answer: '• Minimum voting age is 18 years on qualifying date.'
-    },
-    {
-      keys: ['voter id', 'epic', 'what is voter id', 'e-epic'],
-      answer: '• Voter ID (EPIC) is the electoral photo identity card.\n• You can download e-EPIC from the official voter services portal after registration.'
-    },
-    {
-      keys: ['how to vote', 'how do i vote', 'voting process', 'booth', 'vote'],
-      answer:
-        '• Locate your polling booth on the ECI website.\n• Carry valid ID (EPIC/Aadhaar/PAN).\n• Follow polling officer instructions and press the button next to your chosen candidate.'
-    },
-    {
-      keys: ['nota', 'none of the above'],
-      answer: '• NOTA stands for None of the Above.\n• It lets you register a dissent vote if no candidate is acceptable.'
-    },
-    {
-      keys: ['nvsp', 'nvsp.in', 'national voter portal', 'voters.eci.gov.in'],
-      answer: '• NVSP (voters.eci.gov.in) is the official portal for registration and voter services.'
-    }
-  ];
-
-  for (const item of PRESET_QA) {
-    if (item.keys.some(k => norm.includes(k))) {
-      return item.answer;
-    }
+  const preset = QUICK_START_ITEMS.find(item => item.keywords.some(k => norm.includes(k)) || norm === item.question.trim().toLowerCase());
+  if (preset) {
+    responseCache.set(cacheKey, preset.answer);
+    return preset.answer;
   }
 
   // Domain guard: only answer election-related queries
   const ELECTION_KEYWORDS = ['vote', 'voter', 'voting', 'registration', 'nvsp', 'voter id', 'epic', 'election', 'poll', 'nota', 'form 6', 'form6'];
   const isElection = ELECTION_KEYWORDS.some(k => norm.includes(k));
   if (!isElection) {
-    return "I'm focused on election-related help only. Please ask about registration, voter ID, polling, NVSP, NOTA, or similar topics.";
+    const outOfScopeResp = "I'm focused on election-related help only. Please ask about registration, voter ID, polling, NVSP, NOTA, or similar topics.";
+    responseCache.set(cacheKey, outOfScopeResp);
+    return outOfScopeResp;
   }
 
   // FALLBACK TO MOCK if no API key is provided
   if (!genAI || !API_KEY) {
     console.warn("Gemini API key missing or undefined. Falling back to mock response.");
-    return mockResponse(prompt, persona || 'User', currentStep);
+    const mockResp = mockResponse(prompt, persona || 'User', currentStep);
+    responseCache.set(cacheKey, mockResp);
+    return mockResp;
   }
 
   // Valid Gemini model IDs (ordered by preference)
@@ -123,19 +125,28 @@ export const generateChatResponse = async (
       const fullPrompt =
         `User Persona: ${persona || 'General Voter'}\n` +
         `Current Journey Step: ${STEPS[currentStep] ?? 'General'}\n` +
-        `User Message: ${prompt}`;
+        `User Message: ${safePrompt}`;
 
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
       const text = response.text();
 
       // Simple hallucination guard: if the model hedges or uses uncertain language, refuse and point to official sources
-      const hedgePhrases = ['i think', "i'm not sure", 'maybe', 'might', 'possibly', 'as far as i know', 'could be', 'probably'];
+      const hedgePhrases = ['i think', "i'm not sure", 'maybe', 'might', 'possibly', 'as far as i know', 'could be', 'probably', 'usually', 'often', 'generally'];
       const lowerText = text.toLowerCase();
       if (hedgePhrases.some(p => lowerText.includes(p))) {
         return "I couldn't produce a fully confident answer. Please check official sources (eci.gov.in or voters.eci.gov.in) or rephrase your question with specific details.";
       }
 
+      const unsafeClaims = ['according to me', 'as an ai', 'i cannot verify', 'i do not know', 'not sure'];
+      if (unsafeClaims.some(p => lowerText.includes(p))) {
+        const secureResp = "I can only provide verified election guidance. Please refer to eci.gov.in or voters.eci.gov.in for official details.";
+        responseCache.set(cacheKey, secureResp);
+        return secureResp;
+      }
+
+      // Cache the successful response
+      responseCache.set(cacheKey, text);
       return text;
     } catch (error: any) {
       console.error(`Gemini [${modelName}]:`, error?.message ?? error);
@@ -154,7 +165,7 @@ export const generateChatResponse = async (
 
 // Expanded mock response as a safe fallback for common questions
 const mockResponse = (prompt: string, _persona: string, _currentStep: number): string => {
-  const lower = prompt.toLowerCase();
+  const lower = sanitizeUserInput(prompt).toLowerCase();
 
   // Eligibility
   if (lower.includes('age') || lower.includes('eligible') || lower.includes('qualify')) {

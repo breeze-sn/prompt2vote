@@ -77,6 +77,63 @@
 ## 🏆 Hackathon
 This project was built for **Prompt Wars**, focusing on leveraging Large Language Models (LLMs) to solve real-world accessibility challenges in civic technology.
 
+## 📊 Project Analysis Report
+
+This section is written so the evaluation criteria can be verified directly from the repository and the running app.
+
+### Smart, dynamic assistant
+* The assistant responds to greetings and gratitude without unnecessary AI calls.
+* It uses preset answers for common election questions and Gemini for the remaining election-specific queries.
+* It adapts responses by persona and current journey step.
+
+### Logical decision making based on user context
+* The assistant is limited to election-related topics only.
+* It follows a different path for presets, local responses, and Gemini responses.
+* It uses the current journey step to keep answers relevant.
+
+### Effective use of Google Services
+* Gemini powers the AI assistant.
+* Firebase Hosting publishes the production build.
+* Google services are isolated in a dedicated service module for maintainability.
+
+### Practical and real-world usability
+* The landing page, chat, and popups are responsive on desktop, tablet, and phone.
+* The app includes quick-start election answers and clickable official election links.
+* Important election information is organized into short, understandable sections.
+
+### Clean and maintainable code
+* The UI is split into focused React components.
+* Shared voter state is managed through `JourneyContext` and `JourneyProvider`.
+* Gemini logic lives in `src/services/gemini.ts` instead of being mixed into the UI.
+* The repository includes a placeholder env example and documentation for safer setup.
+
+### Challenge vertical and persona alignment
+* The project is built for the election vertical.
+* The primary personas are first-time voters, students, and working professionals.
+* The experience stays centered on eligibility, registration, voter ID, voting day, and election guidance.
+
+### Safety and trust
+* Election-only filtering reduces irrelevant answers.
+* Preset Q&A reduces dependence on the model for common tasks.
+* Hallucination guards and official-source links keep answers grounded.
+
+### Accessibility and device support
+* The UI is responsive and usable on smaller screens.
+* Controls are simple and visible.
+* Key actions are exposed through buttons, menus, and modal panels.
+
+## ✅ Challenge Expectations
+
+Prompt2Vote is designed to align with the challenge criteria in a practical way:
+
+* **Smart, dynamic assistant:** The chat assistant adapts to persona, current step, and question type.
+* **Logical decision making based on user context:** Responses are filtered by election domain, preset Q&A, persona context, and step-aware prompts.
+* **Effective use of Google Services:** The app uses Google Gemini for generation and Firebase Hosting for deployment.
+* **Practical, real-world usability:** It includes guided election steps, quick-start answers, clickable official links, and mobile-friendly UI.
+* **Clean and maintainable code:** The UI is split into focused components, shared context keeps journey state centralized, and the AI service is isolated in `src/services/gemini.ts`.
+
+The solution also targets a clear challenge persona: first-time and returning voters who need simple, reliable election guidance without generic AI guesswork.
+
 ---
 
 ## 📬 Contact

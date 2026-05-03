@@ -56,6 +56,27 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           </ul>
         </section>
 
+        <section className="about-section">
+          <h2>Project Analysis Fit</h2>
+          <div className="features-grid">
+            <div className="feature-card">
+              <span className="material-symbols-rounded">psychology_alt</span>
+              <h3>Dynamic Assistant</h3>
+              <p>Preset Q&A, persona context, and step-aware prompts keep answers relevant.</p>
+            </div>
+            <div className="feature-card">
+              <span className="material-symbols-rounded">rule</span>
+              <h3>Logical Decisioning</h3>
+              <p>Election-only filtering and local responses prevent unrelated or unsafe replies.</p>
+            </div>
+            <div className="feature-card">
+              <span className="material-symbols-rounded">cloud</span>
+              <h3>Google Services</h3>
+              <p>Gemini powers the assistant and Firebase publishes the deployed experience.</p>
+            </div>
+          </div>
+        </section>
+
         <section className="about-section developer-section">
           <h2>The Developer</h2>
           <div className="developer-card">

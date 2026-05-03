@@ -1,23 +1,20 @@
-/**
- * App shell
- *
- * This file contains the top-level application layout: landing/hero, sidebar
- * navigation, the reusable menu-details modal and the main chat view. Keep
- * the navigation items in `NAV_ITEMS` and the modal content in `MENU_DETAILS`.
- *
- * When extending the sidebar, add a new `MenuKey` entry and include the
- * corresponding `MENU_DETAILS` entry. The modal system will render the
- * selected content automatically.
- */
 import React from 'react';
 import './App.css';
 import { ChatAssistant } from './components/ChatAssistant';
+import { LoginUI } from './components/LoginUI';
 import { AboutPage } from './components/AboutPage';
 import { Registration } from './components/Registration';
-import { JourneyProvider } from './context/JourneyProvider';
 import { useJourney } from './context/JourneyContext';
+import { JourneyProvider } from './context/JourneyProvider';
+import { useAuth } from './context/AuthContext';
 import type { Persona } from './constants/steps';
+import type { ChatSession, ChatMessage } from './constants/chat';
+import { createChatSession, summarizeChat, loadChatSessionsFromFirestore, saveChatSessionToFirestore } from './constants/chat';
+import { classifyQuestion, recordChatEvent, trackGoogleEvent } from './services/googleServices';
+import { generateChatResponse } from './services/gemini';
+import { sanitizeUserInput } from './utils/security';
 import heroImg from './assets/hero.png';
+import { getFirestore } from 'firebase/firestore';
 
 const PERSONAS: { id: Persona; label: string; icon: string; desc: string }[] = [
   { id: 'First-time voter', label: 'First Time Voter', icon: 'how_to_vote', desc: 'Just turned 18 and voting for the first time' },
@@ -178,10 +175,38 @@ const MENU_DETAILS: Record<MenuKey, { title: string; subtitle: string; badge: st
 
 const AppContent: React.FC = () => {
   const { userPersona, setPersona } = useJourney();
+  const { user, loading: authLoading, error: authError, signInWithGoogle, signOut } = useAuth();
+  const [signingIn, setSigningIn] = React.useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setSigningIn(true);
+    try {
+      await signInWithGoogle();
+    } finally {
+      setSigningIn(false);
+    }
+  };
   const [showPersonaChoice, setShowPersonaChoice] = React.useState(false);
   const [activeMenu, setActiveMenu] = React.useState<MenuKey | null>(null);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [showAbout, setShowAbout] = React.useState(false);
+  const [chatSessions, setChatSessions] = React.useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const activeSession = chatSessions.find(session => session.id === activeSessionId) ?? chatSessions[0] ?? null;
+
+  // Load chat sessions from Firestore when user is authenticated
+  React.useEffect(() => {
+    if (user) {
+      const firestore = getFirestore();
+      void loadChatSessionsFromFirestore(firestore, user.uid).then(sessions => {
+        setChatSessions(sessions);
+        if (sessions.length > 0 && !activeSessionId) {
+          setActiveSessionId(sessions[0].id);
+        }
+      });
+    }
+  }, [user?.uid]);
 
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -194,14 +219,142 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, []);
 
+  // Save sessions to Firestore when user is authenticated
+  React.useEffect(() => {
+    if (user && activeSession) {
+      const firestore = getFirestore();
+      void saveChatSessionToFirestore(firestore, user.uid, activeSession);
+    }
+  }, [user?.uid, activeSession]);
+
+  React.useEffect(() => {
+    if (userPersona && !activeSessionId) {
+      const nextSession = createChatSession(userPersona);
+      setChatSessions(prev => [nextSession, ...prev]);
+      setActiveSessionId(nextSession.id);
+      return;
+    }
+
+    if (!activeSessionId && chatSessions.length > 0) {
+      setActiveSessionId(chatSessions[0].id);
+    }
+  }, [activeSessionId, chatSessions, userPersona]);
+
   const handlePersonaSelect = (persona: Persona) => {
     setPersona(persona);
+    const nextSession = createChatSession(persona);
+    setChatSessions(prev => [nextSession, ...prev]);
+    setActiveSessionId(nextSession.id);
+    setShowPersonaChoice(false);
     setActiveMenu('guidelines');
   };
 
   const closeMenu = () => setActiveMenu(null);
   const handleMenuOpen = (menu: MenuKey) => setActiveMenu(menu);
-  const resetJourney = () => window.location.reload();
+
+  const handleNewChat = () => {
+    const nextSession = createChatSession(userPersona);
+    setChatSessions(prev => [nextSession, ...prev]);
+    setActiveSessionId(nextSession.id);
+    setSidebarOpen(true);
+  };
+
+  const handleSelectSession = (sessionId: string) => {
+    setActiveSessionId(sessionId);
+    setSidebarOpen(true);
+  };
+
+  const handleSendMessage = async (text: string) => {
+    const safeText = sanitizeUserInput(text);
+    if (!safeText) return;
+
+    const category = classifyQuestion(safeText);
+    const userMessage: ChatMessage = { role: 'user', content: safeText };
+    const assistantFallback = 'I could not generate a response.';
+    let sessionId = activeSessionId;
+
+    if (!sessionId) {
+      const newSession = createChatSession(userPersona);
+      sessionId = newSession.id;
+      setChatSessions(prev => [newSession, ...prev]);
+      setActiveSessionId(sessionId);
+    }
+
+    setLoading(true);
+    void trackGoogleEvent('chat_question_sent', { category, persona: userPersona ?? 'unselected', step: 0 });
+
+    setChatSessions(prev => prev.map(session => {
+      if (session.id !== sessionId) return session;
+      const updatedMessages = [...session.messages, userMessage];
+      const summary = summarizeChat(updatedMessages);
+      return {
+        ...session,
+        persona: userPersona ?? session.persona,
+        messages: updatedMessages,
+        title: summary.title,
+        preview: summary.preview,
+        icon: summary.icon,
+        updatedAt: Date.now(),
+      };
+    }));
+
+    try {
+      const res = await generateChatResponse(safeText, userPersona, 0);
+      const assistantMessage: ChatMessage = { role: 'assistant', content: res.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1') };
+
+      setChatSessions(prev => prev.map(session => {
+        if (session.id !== sessionId) return session;
+        const updatedMessages = [...session.messages, userMessage, assistantMessage];
+        const summary = summarizeChat(updatedMessages);
+        return {
+          ...session,
+          persona: userPersona ?? session.persona,
+          messages: updatedMessages,
+          title: summary.title,
+          preview: summary.preview,
+          icon: summary.icon,
+          updatedAt: Date.now(),
+        };
+      }));
+
+      void recordChatEvent({
+        source: 'manual',
+        category,
+        persona: userPersona,
+        step: 0,
+        promptLength: safeText.length,
+        hadModelResponse: true,
+      });
+    } catch (error) {
+      console.error(error);
+      setChatSessions(prev => prev.map(session => {
+        if (session.id !== sessionId) return session;
+        const fallbackMessage: ChatMessage = { role: 'assistant', content: assistantFallback };
+        const updatedMessages = [...session.messages, userMessage, fallbackMessage];
+        const summary = summarizeChat(updatedMessages);
+        return {
+          ...session,
+          persona: userPersona ?? session.persona,
+          messages: updatedMessages,
+          title: summary.title,
+          preview: summary.preview,
+          icon: summary.icon,
+          updatedAt: Date.now(),
+        };
+      }));
+
+      void recordChatEvent({
+        source: 'system',
+        category,
+        persona: userPersona,
+        step: 0,
+        promptLength: safeText.length,
+        hadModelResponse: false,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /* Auto-collapse sidebar on small screens and keep state in sync with resize */
   React.useEffect(() => {
@@ -222,7 +375,42 @@ const AppContent: React.FC = () => {
     return <AboutPage onBack={() => setShowAbout(false)} />;
   }
 
-  /* ── Landing ── */
+  /* ── Login Screen (Not Authenticated) ── */
+  if (!user && !authLoading) {
+    return <LoginUI onSignIn={handleGoogleSignIn} loading={signingIn} error={authError} />;
+  }
+
+  /* ── Loading Auth State ── */
+  if (authLoading) {
+    return (
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#000000',
+      }}>
+        <div style={{
+          textAlign: 'center',
+          color: '#ffffff',
+        }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(255, 255, 255, 0.3)',
+            borderTopColor: '#1F87FC',
+            borderRadius: '50%',
+            animation: 'spin 0.6s linear infinite',
+            margin: '0 auto 16px',
+          }}></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Persona Selection / Landing (Authenticated, No Persona) ── */
   if (!userPersona) {
     return (
       <div className="lp-root">
@@ -239,11 +427,13 @@ const AppContent: React.FC = () => {
             <div className="lp-hero-text">
               <h1>Navigate the Election Process<br />with Confidence</h1>
               <p>A simple, AI-powered assistant to help you understand and complete every step of the election process.</p>
-              <button className="lp-cta" onClick={() => setShowPersonaChoice(true)}>Get Started</button>
+              <button className="lp-cta" onClick={() => setShowPersonaChoice(true)}>
+                Get Started
+              </button>
             </div>
 
             <div className="lp-hero-visual" aria-hidden="true">
-              <img src={heroImg} alt="Hero illustration" className="hero-img" />
+              <img src={heroImg} alt="Voting eligibility and election process guide illustration" className="hero-img" />
             </div>
           </div>
         ) : (
@@ -301,12 +491,12 @@ const AppContent: React.FC = () => {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sb-top">
-          <button className="sb-btn" onClick={() => setSidebarOpen(v => !v)}>
+          <button className="sb-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}>
             <span className="material-symbols-rounded">menu</span>
             {sidebarOpen && <span className="sb-btn-label">Menu</span>}
           </button>
-          <button className="sb-btn" onClick={resetJourney}>
-            <span className="material-symbols-rounded">edit_square</span>
+          <button className="sb-btn" onClick={handleNewChat} aria-label="Start a new chat">
+            <span className="material-symbols-rounded">add_comment</span>
             {sidebarOpen && <span className="sb-btn-label">New Chat</span>}
           </button>
         </div>
@@ -321,6 +511,32 @@ const AppContent: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            <div className="sb-history">
+              <div className="sb-history-title">Recent chats</div>
+              <div className="sb-history-list" role="list" aria-label="Recent chats">
+                {chatSessions.length === 0 ? (
+                  <div className="sb-history-empty">No chat history yet</div>
+                ) : (
+                  chatSessions.map(session => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      className={`sb-item sb-thread ${session.id === activeSessionId ? 'active' : ''}`}
+                      onClick={() => handleSelectSession(session.id)}
+                      aria-pressed={session.id === activeSessionId}
+                    >
+                      <span className="material-symbols-rounded sb-item-icon">{session.icon}</span>
+                      <span className="sb-thread-copy">
+                        <span className="sb-thread-title">{session.title}</span>
+                        <span className="sb-thread-preview">{session.preview}</span>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
             <div className="sb-section sb-footer">
               <button type="button" className="sb-item" onClick={() => setShowAbout(true)}>
                 <span className="material-symbols-rounded sb-item-icon">info</span>
@@ -341,9 +557,30 @@ const AppContent: React.FC = () => {
       <main className="chat-main">
         <div className="chat-topbar">
           <span className="chat-logo">Prompt2Vote</span>
+          <div className="chat-topbar-actions">
+            <button
+              className="topbar-button user-profile"
+              title={`Signed in as ${user?.displayName || user?.email || 'User'}`}
+              aria-label="User profile"
+            >
+              <img
+                src={user?.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.displayName || 'User')}
+                alt="User avatar"
+                className="avatar"
+              />
+            </button>
+            <button
+              className="topbar-button signout-btn"
+              onClick={() => void signOut()}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <span className="material-symbols-rounded">logout</span>
+            </button>
+          </div>
         </div>
         <div className="chat-area">
-          <ChatAssistant />
+          <ChatAssistant messages={activeSession?.messages ?? []} loading={loading} onSendMessage={handleSendMessage} />
         </div>
       </main>
     </div>
