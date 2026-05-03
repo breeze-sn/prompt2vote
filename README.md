@@ -44,11 +44,29 @@
     ```bash
     npm install
     ```
-3.  **Environment Variables:**
-    Create a `.env` file and add your Gemini API key:
-    ```
-    VITE_GEMINI_API_KEY=your_api_key_here
-    ```
+3.  **Environment Variables (local development):**
+
+        - Copy the example file and fill in your key (this repo ignores `.env.local`):
+            ```bash
+            cp .env.local.example .env.local
+            # then open .env.local and paste your key
+            ```
+
+        - Alternatively, export temporarily when running the dev server (do not commit keys):
+            ```bash
+            VITE_GEMINI_API_KEY=YOUR_KEY_HERE npm run dev -- --host 0.0.0.0
+            ```
+
+        - Quick curl test (replace `YOUR_KEY_HERE` with your key):
+            ```bash
+            curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent" \
+                -H 'Content-Type: application/json' \
+                -H 'X-goog-api-key: YOUR_KEY_HERE' \
+                -X POST \
+                -d '{"contents":[{"parts":[{"text":"Explain how AI works in a few words"}]}]}'
+            ```
+
+        Security note: `VITE_` variables are injected into the client bundle by Vite — this is convenient for prototypes but NOT secure for production. For production, host a server-side proxy that holds the key and forwards requests, or use a backend function (Firebase Functions, Cloud Run, etc.).
 4.  **Run Development Server:**
     ```bash
     npm run dev

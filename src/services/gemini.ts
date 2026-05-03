@@ -1,3 +1,12 @@
+/**
+ * Gemini service wrapper
+ *
+ * This module wraps calls to Google's Generative AI (Gemini). For local
+ * development or when an API key is not provided, the code falls back to a
+ * deterministic `mockResponse` implementation so the UI remains usable.
+ *
+ * Configure your Gemini key in the environment as `VITE_GEMINI_API_KEY`.
+ */
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { STEPS } from '../constants/steps';
 
@@ -36,6 +45,59 @@ export const generateChatResponse = async (
   currentStep: number
 ): Promise<string> => {
   
+  // Quick-start preset answers (no API call)
+  const norm = prompt.trim().toLowerCase();
+  // Greet and gratitude handling: reply locally without calling the model
+  const greetRegex = /\b(hi|hello|hey|good morning|good afternoon|good evening|greetings)\b/;
+  const thanksRegex = /\b(thanks|thank you|thx|cheers)\b/;
+  if (greetRegex.test(norm)) {
+    return "Hello — thanks for reaching out! How can I help with election-related questions today?";
+  }
+  if (thanksRegex.test(norm)) {
+    return "You're welcome — happy to help with election questions. Ask me anything about registration, voter ID, polling, NVSP, or NOTA.";
+  }
+  const PRESET_QA: Array<{ keys: string[]; answer: string }> = [
+    {
+      keys: ['how to register', 'register', 'registration', 'form 6', 'how do i register'],
+      answer:
+        '• Use Form 6 for new voter registration.\n• Apply online at voters.eci.gov.in or NVSP.\n• Upload photo, age proof, and address proof.\n• Track status with the reference ID.'
+    },
+    {
+      keys: ['voting age', 'age requirement', 'how old', 'minimum age'],
+      answer: '• Minimum voting age is 18 years on qualifying date.'
+    },
+    {
+      keys: ['voter id', 'epic', 'what is voter id', 'e-epic'],
+      answer: '• Voter ID (EPIC) is the electoral photo identity card.\n• You can download e-EPIC from the official voter services portal after registration.'
+    },
+    {
+      keys: ['how to vote', 'how do i vote', 'voting process', 'booth', 'vote'],
+      answer:
+        '• Locate your polling booth on the ECI website.\n• Carry valid ID (EPIC/Aadhaar/PAN).\n• Follow polling officer instructions and press the button next to your chosen candidate.'
+    },
+    {
+      keys: ['nota', 'none of the above'],
+      answer: '• NOTA stands for None of the Above.\n• It lets you register a dissent vote if no candidate is acceptable.'
+    },
+    {
+      keys: ['nvsp', 'nvsp.in', 'national voter portal', 'voters.eci.gov.in'],
+      answer: '• NVSP (voters.eci.gov.in) is the official portal for registration and voter services.'
+    }
+  ];
+
+  for (const item of PRESET_QA) {
+    if (item.keys.some(k => norm.includes(k))) {
+      return item.answer;
+    }
+  }
+
+  // Domain guard: only answer election-related queries
+  const ELECTION_KEYWORDS = ['vote', 'voter', 'voting', 'registration', 'nvsp', 'voter id', 'epic', 'election', 'poll', 'nota', 'form 6', 'form6'];
+  const isElection = ELECTION_KEYWORDS.some(k => norm.includes(k));
+  if (!isElection) {
+    return "I'm focused on election-related help only. Please ask about registration, voter ID, polling, NVSP, NOTA, or similar topics.";
+  }
+
   // FALLBACK TO MOCK if no API key is provided
   if (!genAI || !API_KEY) {
     console.warn("Gemini API key missing or undefined. Falling back to mock response.");
@@ -65,7 +127,16 @@ export const generateChatResponse = async (
 
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
-      return response.text();
+      const text = response.text();
+
+      // Simple hallucination guard: if the model hedges or uses uncertain language, refuse and point to official sources
+      const hedgePhrases = ['i think', "i'm not sure", 'maybe', 'might', 'possibly', 'as far as i know', 'could be', 'probably'];
+      const lowerText = text.toLowerCase();
+      if (hedgePhrases.some(p => lowerText.includes(p))) {
+        return "I couldn't produce a fully confident answer. Please check official sources (eci.gov.in or voters.eci.gov.in) or rephrase your question with specific details.";
+      }
+
+      return text;
     } catch (error: any) {
       console.error(`Gemini [${modelName}]:`, error?.message ?? error);
       lastError = error;

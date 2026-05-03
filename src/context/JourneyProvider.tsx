@@ -2,6 +2,15 @@ import React, { useState, type ReactNode } from 'react';
 import { STEPS, type Persona } from '../constants/steps';
 import { JourneyContext } from './JourneyContext';
 
+/**
+ * JourneyProvider
+ *
+ * Provides the application-wide journey context, including the current step,
+ * completed steps and the selected `userPersona`. Consumers should call
+ * `useJourney()` (from `JourneyContext`) to access these helpers. Keep state
+ * updates minimal and side-effect free so it's easy to test and reason about.
+ */
+
 export const JourneyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
@@ -29,6 +38,7 @@ export const JourneyProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const setPersona = (persona: Persona) => {
+    console.log('[Journey] setPersona ->', persona);
     setUserPersona(persona);
   };
 
