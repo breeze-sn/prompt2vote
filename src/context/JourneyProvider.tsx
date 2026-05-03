@@ -38,7 +38,6 @@ export const JourneyProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const setPersona = (persona: Persona) => {
-    console.log('[Journey] setPersona ->', persona);
     setUserPersona(persona);
   };
 
