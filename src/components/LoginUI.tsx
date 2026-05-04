@@ -19,7 +19,7 @@ export const LoginUI: React.FC<LoginUIProps> = ({ onSignIn, onGuestSignIn, loadi
       <div className="login-card">
         <div className="login-header">
           <h1>Prompt2Vote</h1>
-          <p className="login-subtitle">Your AI-powered voting assistant</p>
+          <p className="login-subtitle">Clara, your AI-powered voting assistant</p>
         </div>
 
         <div className="login-content">

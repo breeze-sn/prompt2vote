@@ -14,8 +14,8 @@ describe('ChatAssistant', () => {
   it('renders the landing greeting before any messages', () => {
     renderChat();
 
-    expect(screen.getByText('Hello there!')).toBeInTheDocument();
-    expect(screen.getByText('How can I help you?')).toBeInTheDocument();
+    expect(screen.getByText("Hi, I'm Clara.")).toBeInTheDocument();
+    expect(screen.getByText('How can I help you vote with confidence?')).toBeInTheDocument();
   });
 
   it('calls onSendMessage when preset is clicked', async () => {

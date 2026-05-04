@@ -19,9 +19,10 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
         <section className="about-section">
           <h1>About the Project</h1>
           <p>
-            Prompt2Vote is an AI-powered election assistant designed to make the voting process accessible,
-            understandable, and transparent for everyone. Built for the Google Gemini Hackathon, this project
-            leverages the power of Generative AI to guide users through the complexities of democratic participation.
+            Prompt2Vote is an AI-powered election assistant led by Clara, designed to make the voting process
+            accessible, understandable, and transparent for everyone. Built for the Google Gemini Hackathon, this
+            project leverages the power of Generative AI to guide users through the complexities of democratic
+            participation.
           </p>
         </section>
 
@@ -36,7 +37,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
             <div className="feature-card">
               <span className="material-symbols-rounded">chat_bubble</span>
               <h3>Gemini-Powered Chat</h3>
-              <p>Instant, concise answers to your election-related queries using the latest Gemini models.</p>
+              <p>Clara delivers instant, concise answers using the latest Gemini models.</p>
             </div>
             <div className="feature-card">
               <span className="material-symbols-rounded">checklist</span>

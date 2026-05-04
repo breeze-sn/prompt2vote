@@ -2,6 +2,8 @@
 
 **Prompt2Vote** is an AI-powered **Smart Election Companion** designed to simplify and gamify the civic journey. This project was developed as part of the **Prompt Wars** hackathon to address the complexity and friction often associated with the electoral process.
 
+Clara is the named AI guide inside Prompt2Vote, delivering concise, step-based election help.
+
 ## 🌟 Features & Importance
 
 ### 1. Guided Election Journey

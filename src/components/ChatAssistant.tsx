@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useJourney } from '../context/JourneyContext';
+import { useAuth } from '../context/AuthContext';
 import { QUICK_START_ITEMS } from '../constants/quickStart';
 import type { ChatMessage } from '../constants/chat';
 import { isSafeLinkUrl } from '../utils/security';
@@ -58,9 +59,15 @@ interface ChatAssistantProps {
 
 export const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, loading, onSendMessage }) => {
   const { userPersona, setPersona } = useJourney();
+  const { user } = useAuth();
   const [input, setInput] = useState('');
   const [showPersonaMenu, setShowPersonaMenu] = useState(false);
   const servicesLabel = getGoogleServicesLabel();
+  const userName = user?.displayName || user?.email || 'You';
+  const avatarSeed = user?.displayName || user?.email || 'User';
+  const userAvatar = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarSeed)}`;
+  const claraName = 'Clara';
+  const claraAvatar = 'https://ui-avatars.com/api/?name=Clara&background=6f2dbd&color=ffffff';
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -98,8 +105,8 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, loading,
       {/* ── Empty state greeting ── */}
       {messages.length === 0 && (
         <div className="greeting-container" aria-live="polite">
-          <h1>Hello there!</h1>
-          <h2>How can I help you?</h2>
+          <h1>Hi, I'm Clara.</h1>
+          <h2>How can I help you vote with confidence?</h2>
         </div>
       )}
 
@@ -108,12 +115,21 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, loading,
         <div className="gemini-messages" role="log" aria-live="polite" aria-relevant="additions text">
           {messages.map((msg, i) =>
             msg.role === 'user' ? (
-              <div key={i} className="gemini-message user">{safeLinkify(msg.content)}</div>
+              <div key={i} className="gemini-message user">
+                <div className="user-label">{userName}</div>
+                <div className="user-content-wrapper">
+                  <div className="user-text">{safeLinkify(msg.content)}</div>
+                  <img className="user-avatar" src={userAvatar} alt={`${userName} avatar`} />
+                </div>
+              </div>
             ) : (
               <div key={i} className="gemini-message assistant">
-                <div className="bot-label">Clara</div>
+                <div className="bot-label">{claraName}</div>
                 <div className="bot-content-wrapper">
-                  <div className="bot-avatar" />
+                  <div className="bot-profile">
+                    <div className="bot-sphere" aria-hidden="true" />
+                    <img className="bot-avatar" src={claraAvatar} alt={`${claraName} profile`} />
+                  </div>
                   <div className="bot-text">{safeLinkify(msg.content)}</div>
                 </div>
               </div>
@@ -123,9 +139,12 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, loading,
           {/* Loading shimmer */}
           {loading && (
             <div className="gemini-message assistant">
-              <div className="bot-label">Clara</div>
+              <div className="bot-label">{claraName}</div>
               <div className="bot-content-wrapper">
-                <div className="bot-avatar pulse" />
+                <div className="bot-profile">
+                  <div className="bot-sphere pulse" aria-hidden="true" />
+                  <img className="bot-avatar" src={claraAvatar} alt={`${claraName} profile`} />
+                </div>
                 <div className="shimmer-container">
                   <div className="shimmer-line" />
                   <div className="shimmer-line short" />
@@ -144,7 +163,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ messages, loading,
         >
           <div className="input-header">
             <span className="material-symbols-rounded">verified_user</span>
-            <span>Ask a Question…</span>
+            <span>Ask Clara a question...</span>
             <span className="service-chip" aria-label={`Google services active: ${servicesLabel}`}>
               {servicesLabel}
             </span>

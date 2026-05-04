@@ -463,7 +463,7 @@ const AppContent: React.FC = () => {
           <div className="lp-hero">
             <div className="lp-hero-text">
               <h1>Navigate the Election Process<br />with Confidence</h1>
-              <p>A simple, AI-powered assistant to help you understand and complete every step of the election process.</p>
+              <p>Meet Clara, your AI-powered election guide for every step of the process.</p>
               <button className="lp-cta" onClick={() => {
                 if (!user) {
                   void signInWithGoogle();
