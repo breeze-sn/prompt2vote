@@ -35,16 +35,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && isOwner(userId);
       
       // Only allow creating own profile
-      allow create: if isAuthenticated() && isOwner(userId) &&
-                       request.resource.data.keys().hasAll(['uid', 'email', 'displayName', 'createdAt']);
+      allow create: if isAuthenticated() && isOwner(userId) && request.resource.data.uid == request.auth.uid;
       
       // Only allow updating own profile
-      allow update: if isAuthenticated() && isOwner(userId) &&
-                       request.resource.data.uid == resource.data.uid &&
-                       request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if isAuthenticated() && isOwner(userId) && request.resource.data.uid == resource.data.uid && request.resource.data.createdAt == resource.data.createdAt;
       
       // Deny delete to keep user history
-      allow delete: false;
+      allow delete: if false;
     }
 
     // ═════════════════════════════════════════════
@@ -55,29 +52,21 @@ service cloud.firestore {
       allow read: if isAuthenticated() && isOwner(resource.data.userId);
       
       // Users can create sessions for themselves
-      allow create: if isAuthenticated() && 
-                       request.resource.data.userId == request.auth.uid &&
-                       request.resource.data.keys().hasAll(['userId', 'id', 'createdAt', 'updatedAt']);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       
       // Users can update only their own sessions
-      allow update: if isAuthenticated() && 
-                       isOwner(resource.data.userId) &&
-                       request.resource.data.userId == resource.data.userId &&
-                       request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if isAuthenticated() && isOwner(resource.data.userId) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
       
       // Users can delete their own sessions
       allow delete: if isAuthenticated() && isOwner(resource.data.userId);
 
       // Subcollection: messages within sessions
       match /messages/{messageId} {
-        allow read: if isAuthenticated() && 
-                       isOwner(get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.userId);
+        allow read: if isAuthenticated() && isOwner(get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.userId);
         
-        allow create: if isAuthenticated() && 
-                        isOwner(get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.userId) &&
-                        request.resource.data.keys().hasAll(['role', 'text', 'timestamp']);
+        allow create: if isAuthenticated() && isOwner(get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.userId);
         
-        allow update, delete: false; // Messages are immutable
+        allow update, delete: if false; // Messages are immutable
       }
     }
 
@@ -107,7 +96,7 @@ service cloud.firestore {
     // DENY ALL ELSE
     // ═════════════════════════════════════════════
     match /{document=**} {
-      allow read, write: false;
+      allow read, write: if false;
     }
   }
 }
