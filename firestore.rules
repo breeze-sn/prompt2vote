@@ -1,0 +1,113 @@
+/**
+ * Firestore Security Rules
+ * 
+ * Deploy with: firebase deploy --only firestore:rules
+ * 
+ * Security Model:
+ * - Users can only read/write their own data
+ * - Chat sessions scoped to user ID
+ * - User profiles protected
+ * - Public analytics allowed
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // ═════════════════════════════════════════════
+    // USERS COLLECTION
+    // ═════════════════════════════════════════════
+    match /users/{userId} {
+      // Authenticated users can read their own profile
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Only allow creating own profile
+      allow create: if isAuthenticated() && isOwner(userId) &&
+                       request.resource.data.keys().hasAll(['uid', 'email', 'displayName', 'createdAt']);
+      
+      // Only allow updating own profile
+      allow update: if isAuthenticated() && isOwner(userId) &&
+                       request.resource.data.uid == resource.data.uid &&
+                       request.resource.data.createdAt == resource.data.createdAt;
+      
+      // Deny delete to keep user history
+      allow delete: false;
+    }
+
+    // ═════════════════════════════════════════════
+    // CHAT SESSIONS COLLECTION
+    // ═════════════════════════════════════════════
+    match /chat_sessions/{sessionId} {
+      // Users can read only their own sessions
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      
+      // Users can create sessions for themselves
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['userId', 'id', 'createdAt', 'updatedAt']);
+      
+      // Users can update only their own sessions
+      allow update: if isAuthenticated() && 
+                       isOwner(resource.data.userId) &&
+                       request.resource.data.userId == resource.data.userId &&
+                       request.resource.data.createdAt == resource.data.createdAt;
+      
+      // Users can delete their own sessions
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+
+      // Subcollection: messages within sessions
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && 
+                       isOwner(get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.userId);
+        
+        allow create: if isAuthenticated() && 
+                        isOwner(get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.userId) &&
+                        request.resource.data.keys().hasAll(['role', 'text', 'timestamp']);
+        
+        allow update, delete: false; // Messages are immutable
+      }
+    }
+
+    // ═════════════════════════════════════════════
+    // ANALYTICS COLLECTION (Public)
+    // ═════════════════════════════════════════════
+    match /analytics/{docId} {
+      // Read only for authenticated users (for stats page)
+      allow read: if isAuthenticated();
+      
+      // Write only from backend (via service account)
+      allow write: if false;
+    }
+
+    // ═════════════════════════════════════════════
+    // SETTINGS COLLECTION
+    // ═════════════════════════════════════════════
+    match /settings/{docId} {
+      // Settings are read-only for users
+      allow read: if isAuthenticated();
+      
+      // Write only from backend
+      allow write: if false;
+    }
+
+    // ═════════════════════════════════════════════
+    // DENY ALL ELSE
+    // ═════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: false;
+    }
+  }
+}
