@@ -1,11 +1,20 @@
 import { createContext, useContext } from 'react';
 import type { User } from 'firebase/auth';
 
+export interface GuestUser {
+  uid: string;
+  email: null;
+  displayName: string;
+  photoURL: null;
+}
+
 export interface AuthContextType {
-  user: User | null;
+  user: User | GuestUser | null;
+  isGuest: boolean;
   loading: boolean;
   error: string | null;
   signInWithGoogle: () => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 

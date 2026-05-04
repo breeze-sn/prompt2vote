@@ -167,20 +167,28 @@ export const signInWithGoogle = async (): Promise<User | null> => {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // Create user profile in Firestore
+    // Create user profile in Firestore (non-blocking)
+    // Don't await this to prevent slow Firestore from blocking auth
     const firestore = getFirestoreInstance();
     if (firestore && user.uid) {
-      await setDoc(doc(firestore, 'users', user.uid), {
+      setDoc(doc(firestore, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
         createdAt: serverTimestamp(),
         lastSignIn: serverTimestamp(),
-      }, { merge: true });
+      }, { merge: true }).catch(err => {
+        console.error('Failed to create user profile:', err);
+        // Don't throw - auth is successful even if profile creation fails
+      });
     }
 
-    await trackGoogleEvent('user_login', { method: 'google' });
+    // Track event (non-blocking)
+    trackGoogleEvent('user_login', { method: 'google' }).catch(err => {
+      console.error('Failed to track login event:', err);
+    });
+
     return user;
   } catch (error: any) {
     console.error('Google sign in error:', error);

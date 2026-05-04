@@ -3,6 +3,7 @@ import './LoginUI.css';
 
 export interface LoginUIProps {
   onSignIn: () => Promise<void>;
+  onGuestSignIn: () => Promise<void>;
   loading?: boolean;
   error?: string | null;
 }
@@ -10,27 +11,18 @@ export interface LoginUIProps {
 /**
  * LoginUI
  *
- * Gemini-inspired login screen with Google Sign-In button.
+ * Gemini-inspired login screen with Google Sign-In and Guest options.
  */
-export const LoginUI: React.FC<LoginUIProps> = ({ onSignIn, loading = false, error = null }) => {
+export const LoginUI: React.FC<LoginUIProps> = ({ onSignIn, onGuestSignIn, loading = false, error = null }) => {
   return (
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
           <h1>Prompt2Vote</h1>
-          <p className="login-subtitle">Your AI-powered guide to understanding elections and voting eligibility</p>
+          <p className="login-subtitle">Your AI-powered voting assistant</p>
         </div>
 
         <div className="login-content">
-          <div className="login-illustration">
-            <span className="material-symbols-rounded login-icon">how_to_vote</span>
-          </div>
-
-          <div className="login-message">
-            <h2>Welcome back</h2>
-            <p>Sign in with your Google account to save your chat history and personalized preferences.</p>
-          </div>
-
           {error && (
             <div className="login-error">
               <span className="material-symbols-rounded">error</span>
@@ -63,30 +55,27 @@ export const LoginUI: React.FC<LoginUIProps> = ({ onSignIn, loading = false, err
             )}
           </button>
 
-          <div className="login-features">
-            <div className="feature">
-              <span className="material-symbols-rounded">cloud_sync</span>
-              <p>Cloud-synced chat history</p>
-            </div>
-            <div className="feature">
-              <span className="material-symbols-rounded">security</span>
-              <p>Secure & private</p>
-            </div>
-            <div className="feature">
-              <span className="material-symbols-rounded">history</span>
-              <p>Access anytime</p>
-            </div>
-          </div>
-        </div>
+          <div className="login-divider">or</div>
 
-        <footer className="login-footer">
-          <a href="https://github.com/breeze-sn/prompt2vote" target="_blank" rel="noopener noreferrer">
-            View on Github
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); }}>
-            Privacy Policy
-          </a>
-        </footer>
+          <button
+            className="login-button guest-signin"
+            onClick={onGuestSignIn}
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? (
+              <>
+                <span className="spinner"></span>
+                Creating session...
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-rounded">person</span>
+                Continue as Guest
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

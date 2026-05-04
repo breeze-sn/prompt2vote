@@ -1,7 +1,6 @@
 import React from 'react';
 import './App.css';
 import { ChatAssistant } from './components/ChatAssistant';
-import { LoginUI } from './components/LoginUI';
 import { AboutPage } from './components/AboutPage';
 import { Registration } from './components/Registration';
 import { useJourney } from './context/JourneyContext';
@@ -175,18 +174,9 @@ const MENU_DETAILS: Record<MenuKey, { title: string; subtitle: string; badge: st
 
 const AppContent: React.FC = () => {
   const { userPersona, setPersona } = useJourney();
-  const { user, loading: authLoading, error: authError, signInWithGoogle, signOut } = useAuth();
-  const [signingIn, setSigningIn] = React.useState(false);
-
-  const handleGoogleSignIn = async () => {
-    setSigningIn(true);
-    try {
-      await signInWithGoogle();
-    } finally {
-      setSigningIn(false);
-    }
-  };
+  const { user, isGuest, loading: authLoading, signInWithGoogle, signOut } = useAuth();
   const [showPersonaChoice, setShowPersonaChoice] = React.useState(false);
+  const [showAccountMenu, setShowAccountMenu] = React.useState(false);
   const [activeMenu, setActiveMenu] = React.useState<MenuKey | null>(null);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [showAbout, setShowAbout] = React.useState(false);
@@ -195,37 +185,89 @@ const AppContent: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const activeSession = chatSessions.find(session => session.id === activeSessionId) ?? chatSessions[0] ?? null;
 
-  // Load chat sessions from Firestore when user is authenticated
+  // Load chat sessions from Firestore or localStorage based on user type
   React.useEffect(() => {
     if (user) {
-      const firestore = getFirestore();
-      void loadChatSessionsFromFirestore(firestore, user.uid).then(sessions => {
-        setChatSessions(sessions);
-        if (sessions.length > 0 && !activeSessionId) {
-          setActiveSessionId(sessions[0].id);
+      if (isGuest) {
+        // Load from localStorage for guest users
+        try {
+          const stored = localStorage.getItem(`prompt2vote.guest.${user.uid}`);
+          if (stored) {
+            const sessions = JSON.parse(stored) as ChatSession[];
+            setChatSessions(sessions);
+            if (sessions.length > 0 && !activeSessionId) {
+              setActiveSessionId(sessions[0].id);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load guest sessions:', err);
         }
-      });
+      } else {
+        // Load from Firestore for authenticated users
+        const firestore = getFirestore();
+        void loadChatSessionsFromFirestore(firestore, user.uid).then(sessions => {
+          setChatSessions(sessions);
+          if (sessions.length > 0 && !activeSessionId) {
+            setActiveSessionId(sessions[0].id);
+          }
+        });
+      }
     }
-  }, [user?.uid]);
+  }, [user?.uid, isGuest]);
 
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setActiveMenu(null);
+        setShowAccountMenu(false);
+      }
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.account-menu-container')) {
+        setShowAccountMenu(false);
       }
     };
 
     window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('click', handleClickOutside);
+    };
   }, []);
 
-  // Save sessions to Firestore when user is authenticated
+  // Save sessions to Firestore or localStorage based on user type
   React.useEffect(() => {
     if (user && activeSession) {
-      const firestore = getFirestore();
-      void saveChatSessionToFirestore(firestore, user.uid, activeSession);
+      if (isGuest) {
+        // Save to localStorage for guest users
+        try {
+          const key = `prompt2vote.guest.${user.uid}`;
+          const existing = localStorage.getItem(key);
+          const sessions = existing ? JSON.parse(existing) as ChatSession[] : [];
+          const index = sessions.findIndex(s => s.id === activeSession.id);
+          if (index >= 0) {
+            sessions[index] = activeSession;
+          } else {
+            sessions.unshift(activeSession);
+          }
+          // Keep max 20 sessions for guests
+          if (sessions.length > 20) {
+            sessions.pop();
+          }
+          localStorage.setItem(key, JSON.stringify(sessions));
+        } catch (err) {
+          console.error('Failed to save guest sessions:', err);
+        }
+      } else {
+        // Save to Firestore for authenticated users
+        const firestore = getFirestore();
+        void saveChatSessionToFirestore(firestore, user.uid, activeSession);
+      }
     }
-  }, [user?.uid, activeSession]);
+  }, [user?.uid, activeSession, isGuest]);
 
   React.useEffect(() => {
     if (userPersona && !activeSessionId) {
@@ -375,11 +417,6 @@ const AppContent: React.FC = () => {
     return <AboutPage onBack={() => setShowAbout(false)} />;
   }
 
-  /* ── Login Screen (Not Authenticated) ── */
-  if (!user && !authLoading) {
-    return <LoginUI onSignIn={handleGoogleSignIn} loading={signingIn} error={authError} />;
-  }
-
   /* ── Loading Auth State ── */
   if (authLoading) {
     return (
@@ -427,7 +464,13 @@ const AppContent: React.FC = () => {
             <div className="lp-hero-text">
               <h1>Navigate the Election Process<br />with Confidence</h1>
               <p>A simple, AI-powered assistant to help you understand and complete every step of the election process.</p>
-              <button className="lp-cta" onClick={() => setShowPersonaChoice(true)}>
+              <button className="lp-cta" onClick={() => {
+                if (!user) {
+                  void signInWithGoogle();
+                } else {
+                  setShowPersonaChoice(true);
+                }
+              }}>
                 Get Started
               </button>
             </div>
@@ -463,7 +506,7 @@ const AppContent: React.FC = () => {
       <div className="modal-overlay" onClick={closeMenu}>
         <div className={`modal-box menu-modal modal-${activeMenu}`} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
           <div className="modal-head">
-            <div>
+            <div className="modal-header-content">
               <p className="modal-kicker">{details.badge}</p>
               <h2 className="modal-title" id="menu-modal-title">{details.title}</h2>
               <p className="modal-subtitle">{details.subtitle}</p>
@@ -558,25 +601,57 @@ const AppContent: React.FC = () => {
         <div className="chat-topbar">
           <span className="chat-logo">Prompt2Vote</span>
           <div className="chat-topbar-actions">
-            <button
-              className="topbar-button user-profile"
-              title={`Signed in as ${user?.displayName || user?.email || 'User'}`}
-              aria-label="User profile"
-            >
-              <img
-                src={user?.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.displayName || 'User')}
-                alt="User avatar"
-                className="avatar"
-              />
-            </button>
-            <button
-              className="topbar-button signout-btn"
-              onClick={() => void signOut()}
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <span className="material-symbols-rounded">logout</span>
-            </button>
+            <div className="account-menu-container">
+              <button
+                className="topbar-button user-profile"
+                onClick={() => setShowAccountMenu(!showAccountMenu)}
+                title={`Signed in as ${user?.displayName || user?.email || 'User'}`}
+                aria-label="Account menu"
+                aria-expanded={showAccountMenu}
+              >
+                <img
+                  src={user?.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.displayName || 'User')}
+                  alt="User avatar"
+                  className="avatar"
+                />
+              </button>
+
+              {showAccountMenu && (
+                <div className="account-menu">
+                  <div className="account-menu-header">
+                    <img
+                      src={user?.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.displayName || 'User')}
+                      alt="User avatar"
+                      className="account-avatar"
+                    />
+                    <div className="account-info">
+                      <p className="account-name">{user?.displayName || 'Guest User'}</p>
+                      <p className="account-email">{user?.email || 'No email'}</p>
+                    </div>
+                  </div>
+
+                  <div className="account-menu-divider"></div>
+
+                  <button className="account-menu-item manage-account" onClick={() => {
+                    setShowAccountMenu(false);
+                    void signInWithGoogle();
+                  }}>
+                    <span className="material-symbols-rounded">manage_accounts</span>
+                    <span>Switch account</span>
+                  </button>
+
+                  <div className="account-menu-divider"></div>
+
+                  <button className="account-menu-item logout" onClick={() => {
+                    setShowAccountMenu(false);
+                    void signOut();
+                  }}>
+                    <span className="material-symbols-rounded">logout</span>
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="chat-area">
